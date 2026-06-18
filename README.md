@@ -4,6 +4,8 @@
 
 A curated MITRE ATT&CK Navigator layer highlighting the top techniques most relevant to the financial sector.
 
+![Demo](demo.png)
+
 ## Layer Summary
 
 | Property          | Value                        |
