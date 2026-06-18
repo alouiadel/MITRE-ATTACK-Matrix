@@ -178,26 +178,53 @@ header > p {
 }
 
 /* Graph legend */
-.graph-legend {
+.graph-controls {
   position: absolute;
   top: 12px;
   right: 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  align-items: flex-end;
+  pointer-events: none;
+}
+
+.graph-controls > * {
+  pointer-events: auto;
+}
+
+.graph-legend {
   background: var(--bg-card);
   border: 1px solid var(--border);
   border-radius: 8px;
   padding: 10px 14px;
   font-size: 0.72rem;
-  max-height: calc(100% - 24px);
+  max-height: calc(100% - 24px - 40px);
   overflow-y: auto;
-  pointer-events: none;
 }
 
 .graph-legend-item {
   display: flex;
   align-items: center;
   gap: 6px;
-  padding: 2px 0;
+  padding: 3px 0;
   white-space: nowrap;
+  cursor: pointer;
+  border-radius: 4px;
+  transition: background 0.15s;
+}
+
+.graph-legend-item:hover {
+  background: var(--bg-hover);
+}
+
+.graph-legend-item.active .graph-legend-label {
+  color: var(--text-heading);
+  font-weight: 700;
+}
+
+.graph-legend-item.active .graph-legend-dot {
+  box-shadow: 0 0 0 2px var(--accent);
 }
 
 .graph-legend-dot {
@@ -205,10 +232,30 @@ header > p {
   height: 10px;
   border-radius: 50%;
   flex-shrink: 0;
+  transition: box-shadow 0.15s;
 }
 
 .graph-legend-label {
   color: var(--text-muted);
+  transition: color 0.15s;
+}
+
+.graph-reset-btn {
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  padding: 4px 12px;
+  color: var(--text-muted);
+  font-size: 0.7rem;
+  cursor: pointer;
+  transition:
+    background 0.2s,
+    color 0.2s;
+}
+
+.graph-reset-btn:hover {
+  background: var(--bg-hover);
+  color: var(--text);
 }
 
 /* Tooltip */
@@ -281,12 +328,23 @@ header > p {
 }
 
 .node-label {
-  font-size: 8px;
+  font-size: 7px;
   pointer-events: none;
-  fill: var(--text-muted);
+  fill: #f0f6fc;
   text-anchor: middle;
-  opacity: 0;
+  opacity: 0.85;
   transition: opacity 0.2s;
+  paint-order: stroke;
+  stroke: rgba(0, 0, 0, 0.55);
+  stroke-width: 2px;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  font-weight: 500;
+}
+
+[data-theme="light"] .node-label {
+  fill: #1f2328;
+  stroke: rgba(255, 255, 255, 0.7);
 }
 
 .node-label.visible {

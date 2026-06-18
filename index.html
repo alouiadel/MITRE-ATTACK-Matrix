@@ -41,7 +41,12 @@
           Loading knowledge graph...
         </div>
       </div>
-      <div class="graph-legend" id="graphLegend"></div>
+      <div class="graph-controls">
+        <button class="graph-reset-btn" id="resetLayoutBtn">
+          Reset layout
+        </button>
+        <div class="graph-legend" id="graphLegend"></div>
+      </div>
     </div>
 
     <div class="graph-tooltip" id="graphTooltip"></div>
@@ -71,7 +76,7 @@
       </div>
     </div>
 
-    <script src="https://d3js.org/d3.v7.min.js"></script>
+    <script src="d3.v7.js"></script>
     <script src="script.js"></script>
   </body>
 </html>
