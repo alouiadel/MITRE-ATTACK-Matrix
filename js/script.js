@@ -649,11 +649,11 @@ function toggleTheme() {
 // --- Init ---
 
 Promise.all([
-  fetch("mitre_matrix_financial_sector.json").then((r) => {
+  fetch("data/mitre_matrix_financial_sector.json").then((r) => {
     if (!r.ok) throw new Error("HTTP " + r.status);
     return r.json();
   }),
-  fetch("technique_lookup.json").then((r) => {
+  fetch("data/technique_lookup.json").then((r) => {
     if (!r.ok) throw new Error("HTTP " + r.status);
     return r.json();
   }),
