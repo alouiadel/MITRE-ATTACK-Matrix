@@ -4,8 +4,13 @@ import webbrowser
 import os
 import sys
 
+import preprocess
+
 PORT = int(sys.argv[1]) if len(sys.argv) > 1 else 8000
 DIR = os.path.dirname(os.path.abspath(__file__))
+
+print("Checking data files...")
+preprocess.run()
 
 
 class Handler(http.server.SimpleHTTPRequestHandler):

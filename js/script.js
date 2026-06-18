@@ -92,13 +92,14 @@ let linkElements = null;
 let labelElements = null;
 let currentFilter = "";
 let layerData = null;
-let lookupData = null;
+
 let graphSvg = null;
 let graphG = null;
 let activeTacticFilter = null;
 let resizeObserver = null;
 
-function buildGraph(layer, lookup) {
+function buildGraph(data) {
+  const layer = data;
   const container = document.getElementById("graphContainer");
   container.innerHTML = "";
 
@@ -129,15 +130,14 @@ function buildGraph(layer, lookup) {
     const uid = t.techniqueID + "|" + t.tactic;
     if (nodeIds.has(uid)) continue;
     nodeIds.add(uid);
-    const info = lookup[t.techniqueID] || {};
     nodes.push({
       id: uid,
       techId: t.techniqueID,
       tactic: t.tactic,
       score: t.score,
-      name: info.name || t.techniqueID,
-      shortName: (info.name || t.techniqueID).slice(0, 22),
-      description: info.description || "",
+      name: t.name || t.techniqueID,
+      shortName: (t.name || t.techniqueID).slice(0, 22),
+      description: t.description || "",
       radius: radiusScale(t.score),
     });
   }
@@ -601,14 +601,13 @@ function resetLayout() {
 // --- Modal ---
 
 function openModal(d) {
-  const info = lookupData[d.techId] || {};
   document.getElementById("modalId").textContent = d.techId;
-  document.getElementById("modalName").textContent = info.name || d.techId;
+  document.getElementById("modalName").textContent = d.name || d.techId;
   document.getElementById("modalTactic").textContent =
     TACTIC_LABELS[d.tactic] || d.tactic;
 
   const desc = document.getElementById("modalDesc");
-  desc.textContent = info.description || "No description available.";
+  desc.textContent = d.description || "No description available.";
 
   const minScore = Math.min(...nodeData.map((n) => n.score));
   const maxScore = Math.max(...nodeData.map((n) => n.score));
@@ -648,23 +647,17 @@ function toggleTheme() {
 
 // --- Init ---
 
-Promise.all([
-  fetch("data/mitre_matrix_financial_sector.json").then((r) => {
+fetch("data/app_data.json")
+  .then((r) => {
     if (!r.ok) throw new Error("HTTP " + r.status);
     return r.json();
-  }),
-  fetch("data/technique_lookup.json").then((r) => {
-    if (!r.ok) throw new Error("HTTP " + r.status);
-    return r.json();
-  }),
-])
-  .then(([layer, lookup]) => {
-    layerData = layer;
-    lookupData = lookup;
+  })
+  .then((data) => {
+    layerData = data;
     const el = document.getElementById("graphContainer");
     el.innerHTML =
       '<div class="loading"><div class="spinner"></div>Rendering graph...</div>';
-    setTimeout(() => buildGraph(layer, lookup), 50);
+    setTimeout(() => buildGraph(data), 50);
   })
   .catch((err) => {
     document.getElementById("graphContainer").innerHTML =
