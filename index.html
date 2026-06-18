@@ -1,5 +1,5 @@
 <!doctype html>
-<html lang="en">
+<html lang="en" data-theme="dark">
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
@@ -8,7 +8,13 @@
   </head>
   <body>
     <header>
-      <h1>MITRE ATT&CK Matrix — Financial Sector</h1>
+      <div class="header-top">
+        <h1>MITRE ATT&CK Matrix — Financial Sector</h1>
+        <button id="themeToggle" class="theme-toggle" aria-label="Toggle theme">
+          <span class="icon-light">&#9788;</span>
+          <span class="icon-dark">&#9790;</span>
+        </button>
+      </div>
       <p>
         Financially-relevant adversary techniques, scored and color-coded by
         prevalence
@@ -18,12 +24,20 @@
         <span>ATT&CK v12</span>
         <span id="totalCount">0 techniques</span>
       </div>
+      <div class="search-bar">
+        <input
+          type="text"
+          id="searchInput"
+          placeholder="Search techniques by name or ID..."
+          autocomplete="off"
+        />
+      </div>
     </header>
 
     <div class="legend">
-      <span>Lower</span>
+      <span>Lower relevance</span>
       <div class="legend-bar"></div>
-      <span>Higher</span>
+      <span>Higher relevance</span>
     </div>
 
     <div class="matrix" id="matrix">
@@ -43,12 +57,16 @@
     <div class="modal-overlay" id="modal">
       <div class="modal">
         <button class="modal-close" id="modalClose">&times;</button>
-        <h2 id="modalId"></h2>
-        <div class="tactic-label" id="modalTactic"></div>
-        <div class="score-badge" id="modalScore"></div>
+        <div class="modal-tech-id" id="modalId"></div>
+        <h2 id="modalName"></h2>
+        <div class="modal-meta">
+          <span class="tactic-label" id="modalTactic"></span>
+          <span class="score-badge" id="modalScore"></span>
+        </div>
+        <p class="modal-description" id="modalDesc"></p>
         <div class="links">
           <a id="modalLink" href="#" target="_blank" rel="noopener"
-            >View on MITRE ATT&CK →</a
+            >View on MITRE ATT&CK &rarr;</a
           >
         </div>
       </div>

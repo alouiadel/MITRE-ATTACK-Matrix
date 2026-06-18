@@ -66,23 +66,39 @@ function textColor(bgRgb) {
   return lum > 160 ? "#0d1117" : "#f0f6fc";
 }
 
-function init(data) {
-  const { gradient, techniques } = data;
+function renderMatrix(layerData, lookup, filterText) {
+  const { gradient, techniques } = layerData;
   const [c1, c2, c3] = gradient.colors.map((c) => c.slice(0, 7));
   const minVal = gradient.minValue;
   const maxVal = gradient.maxValue;
 
+  const lower = filterText.toLowerCase();
+
   const byTactic = {};
   for (const t of techniques) {
     if (!t.enabled) continue;
-    (byTactic[t.tactic] = byTactic[t.tactic] || []).push(t);
+    const info = lookup[t.techniqueID] || {};
+    const name = info.name || "";
+    const matches =
+      !filterText ||
+      t.techniqueID.toLowerCase().includes(lower) ||
+      name.toLowerCase().includes(lower);
+    if (filterText && !matches) continue;
+    (byTactic[t.tactic] = byTactic[t.tactic] || []).push({ ...t, name });
   }
 
   const sortedTactics = TACTIC_ORDER.filter(
     (t) => byTactic[t] && byTactic[t].length > 0,
   );
+
   const container = document.getElementById("matrix");
   container.innerHTML = "";
+
+  if (sortedTactics.length === 0) {
+    container.innerHTML =
+      '<div class="empty-search">No techniques match your search.</div>';
+    return;
+  }
 
   for (const tactic of sortedTactics) {
     const items = byTactic[tactic];
@@ -104,22 +120,33 @@ function init(data) {
     for (const tech of items) {
       const el = document.createElement("div");
       el.className = "technique";
+      el.dataset.techId = tech.techniqueID;
       const bg = scoreColor(tech.score, minVal, maxVal, c1, c2, c3);
       el.style.background = bg;
       el.style.color = textColor(bg);
 
+      const nameSpan = document.createElement("span");
+      nameSpan.className = "tech-name";
+      nameSpan.textContent = tech.name || tech.techniqueID;
+      el.appendChild(nameSpan);
+
+      const meta = document.createElement("div");
+      meta.className = "tech-meta";
+
       const idSpan = document.createElement("span");
-      idSpan.className = "id";
+      idSpan.className = "tech-id";
       idSpan.textContent = tech.techniqueID;
-      el.appendChild(idSpan);
+      meta.appendChild(idSpan);
 
       const scoreSpan = document.createElement("span");
-      scoreSpan.className = "score";
+      scoreSpan.className = "tech-score";
       scoreSpan.textContent = tech.score;
-      el.appendChild(scoreSpan);
+      meta.appendChild(scoreSpan);
+
+      el.appendChild(meta);
 
       el.addEventListener("click", () =>
-        openModal(tech, tactic, minVal, maxVal, c1, c2, c3),
+        openModal(tech, tactic, minVal, maxVal, c1, c2, c3, lookup),
       );
       body.appendChild(el);
     }
@@ -132,11 +159,17 @@ function init(data) {
     techniques.filter((t) => t.enabled).length + " techniques";
 }
 
-function openModal(tech, tactic, minVal, maxVal, c1, c2, c3) {
+function openModal(tech, tactic, minVal, maxVal, c1, c2, c3, lookup) {
   const modal = document.getElementById("modal");
+  const info = lookup[tech.techniqueID] || {};
+
   document.getElementById("modalId").textContent = tech.techniqueID;
+  document.getElementById("modalName").textContent =
+    info.name || tech.techniqueID;
   document.getElementById("modalTactic").textContent =
     TACTIC_LABELS[tactic] || tactic;
+  document.getElementById("modalDesc").textContent =
+    info.description || "No description available.";
 
   const bg = scoreColor(tech.score, minVal, maxVal, c1, c2, c3);
   const badge = document.getElementById("modalScore");
@@ -150,18 +183,64 @@ function openModal(tech, tactic, minVal, maxVal, c1, c2, c3) {
   modal.classList.add("active");
 }
 
-fetch("mitre_matrix_financial_sector.json")
-  .then((r) => {
+// Theme
+function applyTheme(theme) {
+  document.documentElement.setAttribute("data-theme", theme);
+  localStorage.setItem("theme", theme);
+}
+
+function toggleTheme() {
+  const current = document.documentElement.getAttribute("data-theme");
+  applyTheme(current === "dark" ? "light" : "dark");
+}
+
+// Init
+let layerData = null;
+let lookupData = null;
+let currentFilter = "";
+
+function onFilterChange() {
+  currentFilter = document.getElementById("searchInput").value;
+  if (layerData && lookupData) {
+    renderMatrix(layerData, lookupData, currentFilter);
+  }
+}
+
+Promise.all([
+  fetch("mitre_matrix_financial_sector.json").then((r) => {
     if (!r.ok) throw new Error("HTTP " + r.status);
     return r.json();
+  }),
+  fetch("technique_lookup.json").then((r) => {
+    if (!r.ok) throw new Error("HTTP " + r.status);
+    return r.json();
+  }),
+])
+  .then(([layer, lookup]) => {
+    layerData = layer;
+    lookupData = lookup;
+    renderMatrix(layer, lookup, currentFilter);
   })
-  .then((data) => init(data))
   .catch((err) => {
     document.getElementById("matrix").innerHTML =
-      '<div class="error">Failed to load layer data: ' + err.message + "</div>";
+      '<div class="error">Failed to load data: ' + err.message + "</div>";
   });
 
 document.addEventListener("DOMContentLoaded", () => {
+  // Theme
+  const saved = localStorage.getItem("theme") || "dark";
+  applyTheme(saved);
+  document.getElementById("themeToggle").addEventListener("click", toggleTheme);
+
+  // Search
+  const input = document.getElementById("searchInput");
+  let debounceTimer;
+  input.addEventListener("input", () => {
+    clearTimeout(debounceTimer);
+    debounceTimer = setTimeout(onFilterChange, 200);
+  });
+
+  // Modal
   document.getElementById("modalClose").addEventListener("click", () => {
     document.getElementById("modal").classList.remove("active");
   });
