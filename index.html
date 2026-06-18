@@ -10,6 +10,10 @@
     <header>
       <div class="header-top">
         <h1>MITRE ATT&CK — Financial Sector</h1>
+        <div class="view-toggle">
+          <button id="viewGraphBtn" class="view-btn active">Graph</button>
+          <button id="viewMatrixBtn" class="view-btn">Matrix</button>
+        </div>
         <button id="themeToggle" class="theme-toggle" aria-label="Toggle theme">
           <span class="icon-light">&#9788;</span>
           <span class="icon-dark">&#9790;</span>
@@ -34,7 +38,7 @@
       </div>
     </header>
 
-    <div class="graph-wrapper">
+    <div class="graph-wrapper view-graph">
       <div class="graph-container" id="graphContainer">
         <div class="loading">
           <div class="spinner"></div>
@@ -46,6 +50,19 @@
           Reset layout
         </button>
         <div class="graph-legend" id="graphLegend"></div>
+      </div>
+    </div>
+
+    <div
+      class="graph-wrapper view-matrix"
+      id="matrixWrapper"
+      style="display: none"
+    >
+      <div class="matrix-container" id="matrixContainer">
+        <div class="loading">
+          <div class="spinner"></div>
+          Loading matrix...
+        </div>
       </div>
     </div>
 

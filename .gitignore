@@ -1,3 +1,5 @@
 enterprise-attack.json
 *.pkl
 .preprocess_hash
+__pycache__/
+*.pyc
