@@ -635,26 +635,101 @@ function renderMatrix(data) {
     return;
   }
 
+  // --- Top bar: legend + collapse-all ---
+
+  const topBar = document.createElement('div');
+  topBar.className = 'matrix-top';
+
+  const legend = document.createElement('div');
+  legend.className = 'matrix-legend';
+  const minLabel = document.createElement('span');
+  minLabel.className = 'legend-label';
+  minLabel.textContent = minScore;
+  const maxLabel = document.createElement('span');
+  maxLabel.className = 'legend-label';
+  maxLabel.textContent = maxScore;
+  const bar = document.createElement('div');
+  bar.className = 'legend-bar';
+  bar.style.background = `linear-gradient(to right, ${c1}, ${c2}, ${c3})`;
+  legend.appendChild(minLabel);
+  legend.appendChild(bar);
+  legend.appendChild(maxLabel);
+  topBar.appendChild(legend);
+
+  const collapseBtn = document.createElement('button');
+  collapseBtn.className = 'collapse-all-btn';
+  collapseBtn.textContent = 'Collapse all';
+  topBar.appendChild(collapseBtn);
+
+  container.appendChild(topBar);
+
+  // --- Grid ---
+
   const grid = document.createElement('div');
   grid.className = 'matrix-grid';
   container.appendChild(grid);
 
+  const headerBodies = [];
+
   for (const tactic of sortedTactics) {
     const items = byTactic[tactic];
+
+    // Separate parents and sub-techniques
+    const parents = [];
+    const subByParent = {};
+    const orphans = [];
+
+    for (const item of items) {
+      if (item.techniqueID.includes('.')) {
+        const pid = item.techniqueID.split('.')[0];
+        (subByParent[pid] = subByParent[pid] || []).push(item);
+      } else {
+        parents.push(item);
+      }
+    }
+
+    // Find which parents actually have children in this tactic
+    const parentSet = new Set(parents.map((p) => p.techniqueID));
+    for (const pid of Object.keys(subByParent)) {
+      if (!parentSet.has(pid)) {
+        // Orphan sub-techniques (no parent in this tactic)
+        orphans.push(...subByParent[pid]);
+        delete subByParent[pid];
+      }
+    }
+
+    // Sort parents by score descending
+    parents.sort((a, b) => b.score - a.score);
+    // Sort orphans by score descending
+    orphans.sort((a, b) => b.score - a.score);
+    // Sort children under each parent by score descending
+    for (const pid of Object.keys(subByParent)) {
+      subByParent[pid].sort((a, b) => b.score - a.score);
+    }
+
     const col = document.createElement('div');
     col.className = 'matrix-column';
 
     const header = document.createElement('div');
     header.className = 'matrix-header';
 
-    const labelWrap = document.createElement('span');
-    labelWrap.className = 'header-label';
-    labelWrap.textContent = TACTIC_LABELS[tactic] || tactic;
+    const labelLeft = document.createElement('div');
+    labelLeft.className = 'header-label';
+
+    const colorBar = document.createElement('div');
+    colorBar.className = 'tactic-color-bar';
+    colorBar.style.background = TACTIC_COLORS[tactic] || '#888';
+    labelLeft.appendChild(colorBar);
+
+    const labelText = document.createElement('span');
+    labelText.textContent = TACTIC_LABELS[tactic] || tactic;
+    labelLeft.appendChild(labelText);
+
     const countSpan = document.createElement('span');
     countSpan.className = 'count';
     countSpan.textContent = `(${items.length})`;
-    labelWrap.appendChild(countSpan);
-    header.appendChild(labelWrap);
+    labelLeft.appendChild(countSpan);
+    header.appendChild(labelLeft);
 
     const chevron = document.createElement('span');
     chevron.className = 'chevron';
@@ -669,56 +744,86 @@ function renderMatrix(data) {
       chevron.classList.toggle('collapsed');
     });
 
+    headerBodies.push({ header, body, chevron });
+
     col.appendChild(header);
     col.appendChild(body);
 
-    for (const tech of items) {
-      const bg = scoreColor(tech.score, minScore, maxScore, c1, c2, c3);
-      const tc = textColor(bg);
+    // Render parent cards
+    for (const tech of parents) {
+      appendCard(body, tech, minScore, maxScore, c1, c2, c3, false);
+      // Render children under this parent
+      const children = subByParent[tech.techniqueID];
+      if (children) {
+        for (const child of children) {
+          appendCard(body, child, minScore, maxScore, c1, c2, c3, true);
+        }
+      }
+    }
 
-      const card = document.createElement('div');
-      card.className = 'matrix-card';
-      card.style.background = bg;
-      card.style.color = tc;
-
-      const nameSpan = document.createElement('span');
-      nameSpan.className = 'card-name';
-      nameSpan.textContent = tech.name || tech.techniqueID;
-      card.appendChild(nameSpan);
-
-      const meta = document.createElement('div');
-      meta.className = 'card-meta';
-
-      const idSpan = document.createElement('span');
-      idSpan.className = 'card-id';
-      idSpan.textContent = tech.techniqueID;
-      meta.appendChild(idSpan);
-
-      const scoreSpan = document.createElement('span');
-      scoreSpan.className = 'card-score';
-      scoreSpan.textContent = tech.score;
-      meta.appendChild(scoreSpan);
-
-      card.appendChild(meta);
-
-      card.addEventListener('click', () => {
-        openModal({
-          techId: tech.techniqueID,
-          name: tech.name || tech.techniqueID,
-          tactic: tech.tactic,
-          score: tech.score,
-          description: tech.description || '',
-        });
-      });
-
-      body.appendChild(card);
+    // Render orphan sub-techniques as standalone cards
+    for (const tech of orphans) {
+      appendCard(body, tech, minScore, maxScore, c1, c2, c3, false);
     }
 
     grid.appendChild(col);
   }
 
+  // --- Collapse/expand all ---
+  let allCollapsed = false;
+  collapseBtn.addEventListener('click', () => {
+    allCollapsed = !allCollapsed;
+    collapseBtn.textContent = allCollapsed ? 'Expand all' : 'Collapse all';
+    for (const { body, chevron } of headerBodies) {
+      body.classList.toggle('collapsed', allCollapsed);
+      chevron.classList.toggle('collapsed', allCollapsed);
+    }
+  });
+
   document.getElementById('totalCount').textContent =
     techniques.filter((t) => t.enabled).length + ' techniques';
+}
+
+function appendCard(body, tech, minScore, maxScore, c1, c2, c3, isSub) {
+  const bg = scoreColor(tech.score, minScore, maxScore, c1, c2, c3);
+  const tc = textColor(bg);
+
+  const card = document.createElement('div');
+  card.className = 'matrix-card' + (isSub ? ' subtech' : '');
+  card.style.background = bg;
+  card.style.color = tc;
+
+  const nameSpan = document.createElement('span');
+  nameSpan.className = 'card-name';
+  nameSpan.textContent = tech.name || tech.techniqueID;
+  card.appendChild(nameSpan);
+
+  const meta = document.createElement('div');
+  meta.className = 'card-meta';
+
+  const idSpan = document.createElement('span');
+  idSpan.className = 'card-id';
+  idSpan.textContent = tech.techniqueID;
+  meta.appendChild(idSpan);
+
+  const scoreSpan = document.createElement('span');
+  scoreSpan.className = 'card-score';
+  scoreSpan.textContent = tech.score;
+  meta.appendChild(scoreSpan);
+
+  card.appendChild(meta);
+
+  card.addEventListener('click', () => {
+    openModal({
+      techId: tech.techniqueID,
+      name: tech.name || tech.techniqueID,
+      tactic: tech.tactic,
+      score: tech.score,
+      description: tech.description || '',
+    });
+  });
+
+  body.appendChild(card);
 }
 
 // --- View Toggle ---
