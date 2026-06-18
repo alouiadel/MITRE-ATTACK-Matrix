@@ -3,13 +3,13 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>MITRE ATT&CK Matrix — Financial Sector</title>
+    <title>MITRE ATT&CK — Financial Sector</title>
     <link rel="stylesheet" href="style.css" />
   </head>
   <body>
     <header>
       <div class="header-top">
-        <h1>MITRE ATT&CK Matrix — Financial Sector</h1>
+        <h1>MITRE ATT&CK — Financial Sector</h1>
         <button id="themeToggle" class="theme-toggle" aria-label="Toggle theme">
           <span class="icon-light">&#9788;</span>
           <span class="icon-dark">&#9790;</span>
@@ -34,22 +34,17 @@
       </div>
     </header>
 
-    <div class="legend">
-      <span>Lower relevance</span>
-      <div class="legend-bar"></div>
-      <span>Higher relevance</span>
-    </div>
-
-    <div class="collapse-bar">
-      <button class="collapse-btn" id="collapseBtn">Collapse all</button>
-    </div>
-
-    <div class="matrix" id="matrix">
-      <div class="loading">
-        <div class="spinner"></div>
-        Loading layer data...
+    <div class="graph-wrapper">
+      <div class="graph-container" id="graphContainer">
+        <div class="loading">
+          <div class="spinner"></div>
+          Loading knowledge graph...
+        </div>
       </div>
+      <div class="graph-legend" id="graphLegend"></div>
     </div>
+
+    <div class="graph-tooltip" id="graphTooltip"></div>
 
     <footer>
       Forked from
@@ -76,6 +71,7 @@
       </div>
     </div>
 
+    <script src="https://d3js.org/d3.v7.min.js"></script>
     <script src="script.js"></script>
   </body>
 </html>

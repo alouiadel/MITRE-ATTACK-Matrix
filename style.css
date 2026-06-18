@@ -14,6 +14,7 @@
   --overlay: rgba(0, 0, 0, 0.6);
   --modal-bg: #1c2128;
   --input-bg: #0d1117;
+  --graph-bg: #0d1117;
 }
 
 [data-theme="light"] {
@@ -32,6 +33,7 @@
   --overlay: rgba(140, 149, 159, 0.5);
   --modal-bg: #ffffff;
   --input-bg: #f6f8fa;
+  --graph-bg: #f6f8fa;
 }
 
 * {
@@ -52,7 +54,7 @@ body {
 }
 
 header {
-  margin-bottom: 24px;
+  margin-bottom: 20px;
 }
 
 .header-top {
@@ -151,197 +153,156 @@ header > p {
   color: var(--text-dim);
 }
 
-/* Legend */
-.legend {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  gap: 8px;
-  margin-bottom: 24px;
-  font-size: 0.78rem;
-  color: var(--text-muted);
-}
-
-.legend-bar {
-  width: 200px;
-  height: 12px;
-  border-radius: 6px;
-  background: linear-gradient(to right, #8ec843, #ffe766, #ff6666);
-}
-
-/* Collapse toolbar */
-.collapse-bar {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  gap: 8px;
-  margin-bottom: 16px;
-}
-
-.collapse-btn {
-  background: var(--bg-card);
+/* Graph */
+.graph-wrapper {
+  position: relative;
   border: 1px solid var(--border);
-  border-radius: 6px;
-  padding: 6px 16px;
-  color: var(--text-muted);
-  font-size: 0.78rem;
-  cursor: pointer;
-  transition:
-    background 0.2s,
-    color 0.2s;
-}
-
-.collapse-btn:hover {
-  background: var(--bg-hover);
-  color: var(--text);
-}
-
-/* Matrix grid */
-.matrix {
-  display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
-  gap: 12px;
-}
-
-.tactic-column {
-  background: var(--bg-card);
-  border: 1px solid var(--border);
-  border-radius: 8px;
+  border-radius: 10px;
   overflow: hidden;
+  background: var(--graph-bg);
   transition:
     background 0.3s,
     border-color 0.3s;
 }
 
-.tactic-header {
+.graph-container {
+  width: 100%;
+  height: 68vh;
+  min-height: 420px;
+}
+
+.graph-container svg {
+  display: block;
+  width: 100%;
+  height: 100%;
+}
+
+/* Graph legend */
+.graph-legend {
+  position: absolute;
+  top: 12px;
+  right: 12px;
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  border-radius: 8px;
   padding: 10px 14px;
-  font-weight: 700;
-  font-size: 0.8rem;
-  text-transform: uppercase;
-  letter-spacing: 0.04em;
-  background: var(--bg-hover);
-  border-bottom: 1px solid var(--border);
-  color: var(--text-heading);
-  cursor: pointer;
-  user-select: none;
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 8px;
+  font-size: 0.72rem;
+  max-height: calc(100% - 24px);
+  overflow-y: auto;
+  pointer-events: none;
 }
 
-.tactic-header:hover {
-  background: var(--bg);
-}
-
-.tactic-header .header-label {
+.graph-legend-item {
   display: flex;
   align-items: center;
   gap: 6px;
-  min-width: 0;
-}
-
-.tactic-header .count {
-  color: var(--text-muted);
-  font-weight: 400;
-  font-size: 0.72rem;
-}
-
-.tactic-header .chevron {
-  font-size: 0.7rem;
-  color: var(--text-muted);
-  transition: transform 0.25s;
-  flex-shrink: 0;
-}
-
-.tactic-header .chevron.collapsed {
-  transform: rotate(-90deg);
-}
-
-.tactic-body {
-  padding: 6px;
-  max-height: 380px;
-  overflow-y: auto;
-  transition:
-    max-height 0.25s ease,
-    padding 0.25s ease;
-}
-
-.tactic-body.collapsed {
-  max-height: 0;
-  padding-top: 0;
-  padding-bottom: 0;
-  overflow: hidden;
-}
-
-.tactic-body::-webkit-scrollbar {
-  width: 4px;
-}
-.tactic-body::-webkit-scrollbar-track {
-  background: transparent;
-}
-.tactic-body::-webkit-scrollbar-thumb {
-  background: var(--border);
-  border-radius: 4px;
-}
-
-/* Technique card */
-.technique {
-  padding: 7px 10px;
-  margin: 3px 0;
-  border-radius: 5px;
-  cursor: pointer;
-  transition:
-    transform 0.1s,
-    box-shadow 0.1s;
-}
-
-.technique:hover {
-  transform: translateY(-1px);
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.3);
-}
-
-.technique .tech-name {
-  font-size: 0.78rem;
-  font-weight: 600;
-  line-height: 1.3;
-  display: block;
-  overflow: hidden;
-  text-overflow: ellipsis;
+  padding: 2px 0;
   white-space: nowrap;
 }
 
-.technique .tech-meta {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  margin-top: 3px;
+.graph-legend-dot {
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  flex-shrink: 0;
 }
 
-.technique .tech-id {
+.graph-legend-label {
+  color: var(--text-muted);
+}
+
+/* Tooltip */
+.graph-tooltip {
+  position: fixed;
+  pointer-events: none;
+  background: var(--modal-bg);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 8px 14px;
+  font-size: 0.82rem;
+  max-width: 280px;
+  z-index: 500;
+  opacity: 0;
+  transition: opacity 0.15s;
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.3);
+}
+
+.graph-tooltip.visible {
+  opacity: 1;
+}
+
+.graph-tooltip .tt-name {
+  font-weight: 600;
+  color: var(--text-heading);
+}
+
+.graph-tooltip .tt-id {
   font-family: "SF Mono", "Cascadia Code", "Fira Code", monospace;
-  font-size: 0.68rem;
-  opacity: 0.8;
+  font-size: 0.72rem;
+  color: var(--text-muted);
+  margin-top: 2px;
 }
 
-.technique .tech-score {
-  font-weight: 700;
-  background: rgba(0, 0, 0, 0.25);
-  padding: 1px 8px;
-  border-radius: 10px;
-  font-size: 0.66rem;
+.graph-tooltip .tt-tactic {
+  font-size: 0.72rem;
+  color: var(--text-muted);
+  margin-top: 1px;
 }
 
-/* When a tactic column has no visible techniques, hide it */
-.tactic-column.hidden {
-  display: none;
+.graph-tooltip .tt-score {
+  font-size: 0.72rem;
+  margin-top: 2px;
+}
+
+/* SVG styling */
+.link {
+  stroke: var(--text-dim);
+  stroke-opacity: 0.25;
+  stroke-width: 1;
+}
+
+.node {
+  cursor: pointer;
+  stroke: var(--graph-bg);
+  stroke-width: 1.5;
+  transition: stroke-width 0.1s;
+}
+
+.node:hover {
+  stroke-width: 3;
+}
+
+.node.highlighted {
+  stroke-width: 2.5;
+}
+
+.node.faded {
+  opacity: 0.15;
+}
+
+.node-label {
+  font-size: 8px;
+  pointer-events: none;
+  fill: var(--text-muted);
+  text-anchor: middle;
+  opacity: 0;
+  transition: opacity 0.2s;
+}
+
+.node-label.visible {
+  opacity: 1;
+}
+.node-label.faded {
+  opacity: 0.15;
 }
 
 /* Loading / Error */
 .loading {
-  grid-column: 1 / -1;
-  text-align: center;
-  padding: 80px 20px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  height: 100%;
   color: var(--text-muted);
   font-size: 1rem;
 }
@@ -349,7 +310,7 @@ header > p {
 .loading .spinner {
   width: 32px;
   height: 32px;
-  margin: 0 auto 16px;
+  margin-bottom: 16px;
   border: 3px solid var(--border);
   border-top-color: var(--accent);
   border-radius: 50%;
@@ -363,14 +324,15 @@ header > p {
 }
 
 .error {
-  grid-column: 1 / -1;
-  text-align: center;
-  padding: 60px 20px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  height: 100%;
   color: var(--red);
+  font-size: 0.95rem;
 }
 
 .empty-search {
-  grid-column: 1 / -1;
   text-align: center;
   padding: 60px 20px;
   color: var(--text-muted);
@@ -379,7 +341,7 @@ header > p {
 
 footer {
   text-align: center;
-  margin-top: 40px;
+  margin-top: 20px;
   color: var(--text-dim);
   font-size: 0.78rem;
 }
@@ -388,7 +350,6 @@ footer a {
   color: var(--accent);
   text-decoration: none;
 }
-
 footer a:hover {
   text-decoration: underline;
 }
@@ -499,13 +460,17 @@ footer a:hover {
 
 /* Responsive */
 @media (max-width: 600px) {
-  .matrix {
-    grid-template-columns: 1fr;
-  }
   body {
     padding: 12px;
   }
   header h1 {
     font-size: 1.2rem;
+  }
+  .graph-container {
+    height: 55vh;
+    min-height: 300px;
+  }
+  .graph-legend {
+    display: none;
   }
 }

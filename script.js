@@ -32,6 +32,23 @@ const TACTIC_LABELS = {
   impact: "Impact",
 };
 
+const TACTIC_COLORS = {
+  reconnaissance: "#4e79a7",
+  "resource-development": "#f28e2b",
+  "initial-access": "#e15759",
+  execution: "#76b7b2",
+  persistence: "#59a14f",
+  "privilege-escalation": "#edc948",
+  "defense-evasion": "#b07aa1",
+  "credential-access": "#ff9da7",
+  discovery: "#9c755f",
+  "lateral-movement": "#bab0ac",
+  collection: "#86bcf9",
+  "command-and-control": "#d4a6c8",
+  exfiltration: "#a1c9f4",
+  impact: "#f9b4b4",
+};
+
 function scoreColor(score, minVal, maxVal, c1, c2, c3) {
   const t = Math.max(0, Math.min(1, (score - minVal) / (maxVal - minVal)));
   const r1 = parseInt(c1.slice(1, 3), 16),
@@ -66,195 +83,372 @@ function textColor(bgRgb) {
   return lum > 160 ? "#0d1117" : "#f0f6fc";
 }
 
-function renderMatrix(layerData, lookup, filterText) {
-  const { gradient, techniques } = layerData;
-  const [c1, c2, c3] = gradient.colors.map((c) => c.slice(0, 7));
-  const minVal = gradient.minValue;
-  const maxVal = gradient.maxValue;
+// --- D3 Force Graph ---
 
-  const lower = filterText.toLowerCase();
+let simulation = null;
+let nodeData = [];
+let nodeElements = null;
+let linkElements = null;
+let labelElements = null;
+let currentFilter = "";
+let layerData = null;
+let lookupData = null;
 
-  const byTactic = {};
-  for (const t of techniques) {
-    if (!t.enabled) continue;
-    const info = lookup[t.techniqueID] || {};
-    const name = info.name || "";
-    const matches =
-      !filterText ||
-      t.techniqueID.toLowerCase().includes(lower) ||
-      name.toLowerCase().includes(lower);
-    if (filterText && !matches) continue;
-    (byTactic[t.tactic] = byTactic[t.tactic] || []).push({ ...t, name });
-  }
-
-  const sortedTactics = TACTIC_ORDER.filter(
-    (t) => byTactic[t] && byTactic[t].length > 0,
-  );
-
-  const container = document.getElementById("matrix");
+function buildGraph(layer, lookup) {
+  const container = document.getElementById("graphContainer");
   container.innerHTML = "";
 
-  if (sortedTactics.length === 0) {
-    container.innerHTML =
-      '<div class="empty-search">No techniques match your search.</div>';
-    return;
+  const rect = container.getBoundingClientRect();
+  const width = rect.width;
+  const height = rect.height;
+
+  // Deduplicate techniques (same ID may appear in multiple tactics)
+  const techMap = new Map();
+  for (const t of layer.techniques) {
+    if (!t.enabled) continue;
+    const key = t.techniqueID + "|" + t.tactic;
+    techMap.set(key, t);
   }
 
-  for (const tactic of sortedTactics) {
-    const items = byTactic[tactic];
-    const col = document.createElement("div");
-    col.className = "tactic-column";
-    col.dataset.tactic = tactic;
+  const allEntries = Array.from(techMap.values());
+  const scores = allEntries.map((t) => t.score);
+  const minScore = Math.min(...scores);
+  const maxScore = Math.max(...scores);
 
-    const header = document.createElement("div");
-    header.className = "tactic-header";
+  const radiusScale = d3
+    .scaleSqrt()
+    .domain([minScore, maxScore])
+    .range([5, 24]);
 
-    const labelWrap = document.createElement("span");
-    labelWrap.className = "header-label";
-    labelWrap.textContent = TACTIC_LABELS[tactic] || tactic;
-    const countSpan = document.createElement("span");
-    countSpan.className = "count";
-    countSpan.textContent = `(${items.length})`;
-    labelWrap.appendChild(countSpan);
-    header.appendChild(labelWrap);
+  // Build nodes (unique by techniqueID + tactic)
+  const nodeIds = new Set();
+  const nodes = [];
+  for (const t of allEntries) {
+    const uid = t.techniqueID + "|" + t.tactic;
+    if (nodeIds.has(uid)) continue;
+    nodeIds.add(uid);
+    const info = lookup[t.techniqueID] || {};
+    nodes.push({
+      id: uid,
+      techId: t.techniqueID,
+      tactic: t.tactic,
+      score: t.score,
+      name: info.name || t.techniqueID,
+      description: info.description || "",
+      radius: radiusScale(t.score),
+    });
+  }
 
-    const chevron = document.createElement("span");
-    chevron.className = "chevron";
-    chevron.textContent = "\u25BC";
-    header.appendChild(chevron);
+  nodeData = nodes;
 
-    header.addEventListener("click", () => toggleTactic(header));
+  // Build links: connect sub-techniques to their parent within same tactic
+  const nodeByTechId = {};
+  for (const n of nodes) {
+    if (!nodeByTechId[n.tactic]) nodeByTechId[n.tactic] = {};
+    nodeByTechId[n.tactic][n.techId] = n;
+  }
 
-    col.appendChild(header);
-
-    const defaultCollapsed = items.length > 12;
-    if (defaultCollapsed) collapsedTactics.add(tactic);
-
-    const body = document.createElement("div");
-    body.className = "tactic-body" + (defaultCollapsed ? " collapsed" : "");
-    if (defaultCollapsed) chevron.classList.add("collapsed");
-
-    for (const tech of items) {
-      const el = document.createElement("div");
-      el.className = "technique";
-      el.dataset.techId = tech.techniqueID;
-      const bg = scoreColor(tech.score, minVal, maxVal, c1, c2, c3);
-      el.style.background = bg;
-      el.style.color = textColor(bg);
-
-      const nameSpan = document.createElement("span");
-      nameSpan.className = "tech-name";
-      nameSpan.textContent = tech.name || tech.techniqueID;
-      el.appendChild(nameSpan);
-
-      const meta = document.createElement("div");
-      meta.className = "tech-meta";
-
-      const idSpan = document.createElement("span");
-      idSpan.className = "tech-id";
-      idSpan.textContent = tech.techniqueID;
-      meta.appendChild(idSpan);
-
-      const scoreSpan = document.createElement("span");
-      scoreSpan.className = "tech-score";
-      scoreSpan.textContent = tech.score;
-      meta.appendChild(scoreSpan);
-
-      el.appendChild(meta);
-
-      el.addEventListener("click", () =>
-        openModal(tech, tactic, minVal, maxVal, c1, c2, c3, lookup),
-      );
-      body.appendChild(el);
+  const links = [];
+  for (const n of nodes) {
+    const parts = n.techId.split(".");
+    if (parts.length === 2) {
+      const parentId = parts[0];
+      const parent = nodeByTechId[n.tactic]?.[parentId];
+      if (parent) {
+        links.push({ source: parent.id, target: n.id });
+      }
     }
-
-    col.appendChild(body);
-    container.appendChild(col);
   }
+
+  // SVG
+  const svg = d3
+    .select(container)
+    .append("svg")
+    .attr("width", width)
+    .attr("height", height);
+
+  const defs = svg.append("defs");
+  // Drop shadow filter for nodes
+  defs
+    .append("filter")
+    .attr("id", "node-shadow")
+    .attr("x", "-20%")
+    .attr("y", "-20%")
+    .attr("width", "140%")
+    .attr("height", "140%")
+    .append("feDropShadow")
+    .attr("dx", 0)
+    .attr("dy", 1)
+    .attr("stdDeviation", 2)
+    .attr("flood-opacity", 0.3);
+
+  const g = svg.append("g");
+
+  // Zoom
+  const zoom = d3
+    .zoom()
+    .scaleExtent([0.15, 6])
+    .on("zoom", (event) => {
+      g.attr("transform", event.transform);
+    });
+  svg.call(zoom);
+
+  // Initial zoom to fit
+  svg.call(zoom.transform, d3.zoomIdentity.translate(width / 2, height / 2));
+
+  // Links
+  linkElements = g
+    .append("g")
+    .selectAll("line")
+    .data(links)
+    .join("line")
+    .attr("class", "link");
+
+  // Nodes
+  nodeElements = g
+    .append("g")
+    .selectAll("circle")
+    .data(nodes)
+    .join("circle")
+    .attr("class", "node")
+    .attr("r", (d) => d.radius)
+    .attr("fill", (d) => TACTIC_COLORS[d.tactic] || "#888")
+    .attr("filter", "url(#node-shadow)")
+    .call(drag(simulation));
+
+  // Labels
+  labelElements = g
+    .append("g")
+    .selectAll("text")
+    .data(nodes)
+    .join("text")
+    .attr("class", "node-label")
+    .attr("font-size", (d) => Math.max(7, Math.min(11, d.radius * 0.45)))
+    .text((d) => d.name);
+
+  // Tooltip
+  const tooltip = document.getElementById("graphTooltip");
+
+  nodeElements
+    .on("mouseenter", function (event, d) {
+      const ct = document.getElementById("graphContainer");
+      const ctRect = ct.getBoundingClientRect();
+      tooltip.innerHTML =
+        '<div class="tt-name">' +
+        escapeHtml(d.name) +
+        "</div>" +
+        '<div class="tt-id">' +
+        escapeHtml(d.techId) +
+        "</div>" +
+        '<div class="tt-tactic">' +
+        escapeHtml(TACTIC_LABELS[d.tactic] || d.tactic) +
+        "</div>" +
+        '<div class="tt-score">Score: ' +
+        d.score +
+        "</div>";
+      tooltip.classList.add("visible");
+      moveTooltip(event);
+      d3.select(this).raise();
+    })
+    .on("mousemove", moveTooltip)
+    .on("mouseleave", function () {
+      tooltip.classList.remove("visible");
+    })
+    .on("click", function (event, d) {
+      openModal(d);
+    });
+
+  // Simulation
+  simulation = d3
+    .forceSimulation(nodes)
+    .force(
+      "link",
+      d3
+        .forceLink(links)
+        .id((d) => d.id)
+        .distance(80)
+        .strength(0.4),
+    )
+    .force("charge", d3.forceManyBody().strength(-180))
+    .force("center", d3.forceCenter(0, 0))
+    .force(
+      "collision",
+      d3.forceCollide().radius((d) => d.radius + 4),
+    );
+
+  simulation.on("tick", () => {
+    linkElements
+      .attr("x1", (d) => d.source.x)
+      .attr("y1", (d) => d.source.y)
+      .attr("x2", (d) => d.target.x)
+      .attr("y2", (d) => d.target.y);
+
+    nodeElements.attr("cx", (d) => d.x).attr("cy", (d) => d.y);
+    labelElements.attr("x", (d) => d.x).attr("y", (d) => d.y - d.radius - 5);
+  });
+
+  simulation.alpha(0.8).restart();
+
+  // Build legend
+  buildLegend(nodes);
 
   document.getElementById("totalCount").textContent =
-    techniques.filter((t) => t.enabled).length + " techniques";
+    nodes.length + " techniques";
 
-  // Restore collapse state after render
-  collapseState = new Set(
-    Array.from(container.querySelectorAll(".tactic-column")).map((col) => {
-      const key = col.dataset.tactic;
-      if (collapsedTactics.has(key)) {
-        col.querySelector(".tactic-body").classList.add("collapsed");
-        col.querySelector(".chevron").classList.add("collapsed");
-      }
-      return key;
-    }),
-  );
+  // Apply any existing filter
+  if (currentFilter) applyFilter(currentFilter, nodes);
 }
 
-// Collapse / expand
-let collapsedTactics = new Set();
-let collapseState = new Set();
+function drag(sim) {
+  function dragstarted(event, d) {
+    if (!event.active) sim?.alphaTarget(0.3).restart();
+    d.fx = d.x;
+    d.fy = d.y;
+  }
 
-function toggleTactic(headerEl) {
-  const col = headerEl.closest(".tactic-column");
-  const body = col.querySelector(".tactic-body");
-  const chevron = headerEl.querySelector(".chevron");
-  const tactic = col.dataset.tactic;
+  function dragged(event, d) {
+    d.fx = event.x;
+    d.fy = event.y;
+  }
 
-  body.classList.toggle("collapsed");
-  chevron.classList.toggle("collapsed");
+  function dragended(event, d) {
+    if (!event.active) sim?.alphaTarget(0);
+    d.fx = null;
+    d.fy = null;
+  }
 
-  if (body.classList.contains("collapsed")) {
-    collapsedTactics.add(tactic);
-  } else {
-    collapsedTactics.delete(tactic);
+  return d3
+    .drag()
+    .on("start", dragstarted)
+    .on("drag", dragged)
+    .on("end", dragended);
+}
+
+function moveTooltip(event) {
+  const tooltip = document.getElementById("graphTooltip");
+  let x = event.clientX + 14;
+  let y = event.clientY - 10;
+  const tr = tooltip.getBoundingClientRect();
+  if (x + tr.width > window.innerWidth - 10) x = event.clientX - tr.width - 14;
+  if (y + tr.height > window.innerHeight - 10)
+    y = event.clientY - tr.height + 10;
+  if (y < 10) y = 10;
+  tooltip.style.left = x + "px";
+  tooltip.style.top = y + "px";
+}
+
+function buildLegend(nodes) {
+  const legend = document.getElementById("graphLegend");
+  legend.innerHTML = "";
+
+  const seen = new Set();
+  for (const n of nodes) {
+    if (seen.has(n.tactic)) continue;
+    seen.add(n.tactic);
+    const item = document.createElement("div");
+    item.className = "graph-legend-item";
+    const dot = document.createElement("span");
+    dot.className = "graph-legend-dot";
+    dot.style.background = TACTIC_COLORS[n.tactic] || "#888";
+    item.appendChild(dot);
+    const label = document.createElement("span");
+    label.className = "graph-legend-label";
+    label.textContent = TACTIC_LABELS[n.tactic] || n.tactic;
+    item.appendChild(label);
+    legend.appendChild(item);
   }
 }
 
-function collapseAll() {
-  const allCollapsed =
-    document.querySelectorAll(".tactic-body:not(.collapsed)").length === 0;
-  document.querySelectorAll(".tactic-column").forEach((col) => {
-    const body = col.querySelector(".tactic-body");
-    const chevron = col.querySelector(".chevron");
-    const tactic = col.dataset.tactic;
-    if (allCollapsed) {
-      body.classList.remove("collapsed");
-      chevron.classList.remove("collapsed");
-      collapsedTactics.delete(tactic);
-    } else {
-      body.classList.add("collapsed");
-      chevron.classList.add("collapsed");
-      collapsedTactics.add(tactic);
-    }
-  });
-  document.getElementById("collapseBtn").textContent = allCollapsed
-    ? "Collapse all"
-    : "Expand all";
+function escapeHtml(str) {
+  const div = document.createElement("div");
+  div.textContent = str;
+  return div.innerHTML;
 }
 
-function openModal(tech, tactic, minVal, maxVal, c1, c2, c3, lookup) {
-  const modal = document.getElementById("modal");
-  const info = lookup[tech.techniqueID] || {};
+// --- Filter / Search ---
 
-  document.getElementById("modalId").textContent = tech.techniqueID;
-  document.getElementById("modalName").textContent =
-    info.name || tech.techniqueID;
+function applyFilter(filterText, nodes) {
+  const lower = filterText.toLowerCase();
+
+  nodeElements.each(function (d) {
+    const el = d3.select(this);
+    const label = d3.select(
+      labelElements.nodes()[nodeElements.nodes().indexOf(this)],
+    );
+    const matches =
+      !filterText ||
+      d.techId.toLowerCase().includes(lower) ||
+      d.name.toLowerCase().includes(lower);
+
+    el.classed("highlighted", matches && !!filterText);
+    el.classed("faded", !matches && !!filterText);
+    label.classed("visible", matches && !!filterText);
+    label.classed("faded", !matches && !!filterText);
+
+    // Resize matched nodes slightly
+    if (matches && filterText) {
+      el.attr("r", d.radius * 1.3);
+    } else {
+      el.attr("r", d.radius);
+    }
+  });
+
+  // Fade links connected to non-matching nodes
+  linkElements.each(function (d) {
+    const sourceMatch =
+      !filterText ||
+      d.source.techId.toLowerCase().includes(lower) ||
+      d.source.name.toLowerCase().includes(lower);
+    const targetMatch =
+      !filterText ||
+      d.target.techId.toLowerCase().includes(lower) ||
+      d.target.name.toLowerCase().includes(lower);
+    const anyMatch = sourceMatch || targetMatch;
+    d3.select(this).attr(
+      "stroke-opacity",
+      filterText ? (anyMatch ? 0.4 : 0.04) : 0.25,
+    );
+  });
+}
+
+function onFilterChange() {
+  currentFilter = document.getElementById("searchInput").value;
+  if (nodeData.length > 0) {
+    applyFilter(currentFilter, nodeData);
+  }
+}
+
+// --- Modal ---
+
+function openModal(d) {
+  const info = lookupData[d.techId] || {};
+  document.getElementById("modalId").textContent = d.techId;
+  document.getElementById("modalName").textContent = info.name || d.techId;
   document.getElementById("modalTactic").textContent =
-    TACTIC_LABELS[tactic] || tactic;
-  document.getElementById("modalDesc").textContent =
-    info.description || "No description available.";
+    TACTIC_LABELS[d.tactic] || d.tactic;
 
-  const bg = scoreColor(tech.score, minVal, maxVal, c1, c2, c3);
+  const desc = document.getElementById("modalDesc");
+  desc.textContent = info.description || "No description available.";
+
+  const minScore = Math.min(...nodeData.map((n) => n.score));
+  const maxScore = Math.max(...nodeData.map((n) => n.score));
+  const layer = layerData;
+  const [c1, c2, c3] = layer.gradient.colors.map((c) => c.slice(0, 7));
+  const bg = scoreColor(d.score, minScore, maxScore, c1, c2, c3);
+
   const badge = document.getElementById("modalScore");
-  badge.textContent = "Score: " + tech.score;
+  badge.textContent = "Score: " + d.score;
   badge.style.background = bg;
   badge.style.color = textColor(bg);
 
   document.getElementById("modalLink").href =
-    "https://attack.mitre.org/techniques/" + tech.techniqueID.replace(".", "/");
+    "https://attack.mitre.org/techniques/" + d.techId.replace(".", "/");
 
-  modal.classList.add("active");
+  document.getElementById("modal").classList.add("active");
 }
 
-// Theme
+// --- Theme ---
+
 function applyTheme(theme) {
   document.documentElement.setAttribute("data-theme", theme);
   localStorage.setItem("theme", theme);
@@ -265,17 +459,7 @@ function toggleTheme() {
   applyTheme(current === "dark" ? "light" : "dark");
 }
 
-// Init
-let layerData = null;
-let lookupData = null;
-let currentFilter = "";
-
-function onFilterChange() {
-  currentFilter = document.getElementById("searchInput").value;
-  if (layerData && lookupData) {
-    renderMatrix(layerData, lookupData, currentFilter);
-  }
-}
+// --- Init ---
 
 Promise.all([
   fetch("mitre_matrix_financial_sector.json").then((r) => {
@@ -290,23 +474,21 @@ Promise.all([
   .then(([layer, lookup]) => {
     layerData = layer;
     lookupData = lookup;
-    renderMatrix(layer, lookup, currentFilter);
+    const el = document.getElementById("graphContainer");
+    el.innerHTML =
+      '<div class="loading"><div class="spinner"></div>Rendering graph...</div>';
+    setTimeout(() => buildGraph(layer, lookup), 50);
   })
   .catch((err) => {
-    document.getElementById("matrix").innerHTML =
+    document.getElementById("graphContainer").innerHTML =
       '<div class="error">Failed to load data: ' + err.message + "</div>";
   });
 
 document.addEventListener("DOMContentLoaded", () => {
-  // Theme
   const saved = localStorage.getItem("theme") || "dark";
   applyTheme(saved);
   document.getElementById("themeToggle").addEventListener("click", toggleTheme);
 
-  // Collapse all button
-  document.getElementById("collapseBtn").addEventListener("click", collapseAll);
-
-  // Search
   const input = document.getElementById("searchInput");
   let debounceTimer;
   input.addEventListener("input", () => {
@@ -314,7 +496,6 @@ document.addEventListener("DOMContentLoaded", () => {
     debounceTimer = setTimeout(onFilterChange, 200);
   });
 
-  // Modal
   document.getElementById("modalClose").addEventListener("click", () => {
     document.getElementById("modal").classList.remove("active");
   });
