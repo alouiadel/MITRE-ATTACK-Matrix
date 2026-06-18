@@ -104,18 +104,35 @@ function renderMatrix(layerData, lookup, filterText) {
     const items = byTactic[tactic];
     const col = document.createElement("div");
     col.className = "tactic-column";
+    col.dataset.tactic = tactic;
 
     const header = document.createElement("div");
     header.className = "tactic-header";
-    header.textContent = TACTIC_LABELS[tactic] || tactic;
+
+    const labelWrap = document.createElement("span");
+    labelWrap.className = "header-label";
+    labelWrap.textContent = TACTIC_LABELS[tactic] || tactic;
     const countSpan = document.createElement("span");
     countSpan.className = "count";
     countSpan.textContent = `(${items.length})`;
-    header.appendChild(countSpan);
+    labelWrap.appendChild(countSpan);
+    header.appendChild(labelWrap);
+
+    const chevron = document.createElement("span");
+    chevron.className = "chevron";
+    chevron.textContent = "\u25BC";
+    header.appendChild(chevron);
+
+    header.addEventListener("click", () => toggleTactic(header));
+
     col.appendChild(header);
 
+    const defaultCollapsed = items.length > 12;
+    if (defaultCollapsed) collapsedTactics.add(tactic);
+
     const body = document.createElement("div");
-    body.className = "tactic-body";
+    body.className = "tactic-body" + (defaultCollapsed ? " collapsed" : "");
+    if (defaultCollapsed) chevron.classList.add("collapsed");
 
     for (const tech of items) {
       const el = document.createElement("div");
@@ -157,6 +174,60 @@ function renderMatrix(layerData, lookup, filterText) {
 
   document.getElementById("totalCount").textContent =
     techniques.filter((t) => t.enabled).length + " techniques";
+
+  // Restore collapse state after render
+  collapseState = new Set(
+    Array.from(container.querySelectorAll(".tactic-column")).map((col) => {
+      const key = col.dataset.tactic;
+      if (collapsedTactics.has(key)) {
+        col.querySelector(".tactic-body").classList.add("collapsed");
+        col.querySelector(".chevron").classList.add("collapsed");
+      }
+      return key;
+    }),
+  );
+}
+
+// Collapse / expand
+let collapsedTactics = new Set();
+let collapseState = new Set();
+
+function toggleTactic(headerEl) {
+  const col = headerEl.closest(".tactic-column");
+  const body = col.querySelector(".tactic-body");
+  const chevron = headerEl.querySelector(".chevron");
+  const tactic = col.dataset.tactic;
+
+  body.classList.toggle("collapsed");
+  chevron.classList.toggle("collapsed");
+
+  if (body.classList.contains("collapsed")) {
+    collapsedTactics.add(tactic);
+  } else {
+    collapsedTactics.delete(tactic);
+  }
+}
+
+function collapseAll() {
+  const allCollapsed =
+    document.querySelectorAll(".tactic-body:not(.collapsed)").length === 0;
+  document.querySelectorAll(".tactic-column").forEach((col) => {
+    const body = col.querySelector(".tactic-body");
+    const chevron = col.querySelector(".chevron");
+    const tactic = col.dataset.tactic;
+    if (allCollapsed) {
+      body.classList.remove("collapsed");
+      chevron.classList.remove("collapsed");
+      collapsedTactics.delete(tactic);
+    } else {
+      body.classList.add("collapsed");
+      chevron.classList.add("collapsed");
+      collapsedTactics.add(tactic);
+    }
+  });
+  document.getElementById("collapseBtn").textContent = allCollapsed
+    ? "Collapse all"
+    : "Expand all";
 }
 
 function openModal(tech, tactic, minVal, maxVal, c1, c2, c3, lookup) {
@@ -231,6 +302,9 @@ document.addEventListener("DOMContentLoaded", () => {
   const saved = localStorage.getItem("theme") || "dark";
   applyTheme(saved);
   document.getElementById("themeToggle").addEventListener("click", toggleTheme);
+
+  // Collapse all button
+  document.getElementById("collapseBtn").addEventListener("click", collapseAll);
 
   // Search
   const input = document.getElementById("searchInput");
