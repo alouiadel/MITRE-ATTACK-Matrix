@@ -1,0 +1,59 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>MITRE ATT&CK Matrix — Financial Sector</title>
+    <link rel="stylesheet" href="style.css" />
+  </head>
+  <body>
+    <header>
+      <h1>MITRE ATT&CK Matrix — Financial Sector</h1>
+      <p>
+        Financially-relevant adversary techniques, scored and color-coded by
+        prevalence
+      </p>
+      <div class="stats">
+        <span>Layer: <strong>top13(all of them)</strong></span>
+        <span>ATT&CK v12</span>
+        <span id="totalCount">0 techniques</span>
+      </div>
+    </header>
+
+    <div class="legend">
+      <span>Lower</span>
+      <div class="legend-bar"></div>
+      <span>Higher</span>
+    </div>
+
+    <div class="matrix" id="matrix">
+      <div class="loading">
+        <div class="spinner"></div>
+        Loading layer data...
+      </div>
+    </div>
+
+    <footer>
+      Forked from
+      <a href="https://github.com/ichrakamani/MITRE-ATTACK"
+        >ichrakamani/MITRE-ATTACK</a
+      >
+    </footer>
+
+    <div class="modal-overlay" id="modal">
+      <div class="modal">
+        <button class="modal-close" id="modalClose">&times;</button>
+        <h2 id="modalId"></h2>
+        <div class="tactic-label" id="modalTactic"></div>
+        <div class="score-badge" id="modalScore"></div>
+        <div class="links">
+          <a id="modalLink" href="#" target="_blank" rel="noopener"
+            >View on MITRE ATT&CK →</a
+          >
+        </div>
+      </div>
+    </div>
+
+    <script src="script.js"></script>
+  </body>
+</html>

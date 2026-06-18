@@ -48,12 +48,14 @@ A curated MITRE ATT&CK Navigator layer highlighting the top techniques most rele
 | T1059.003 (Windows Command Shell)          | 90    |
 | T1566.001 (Spearphishing Attachment)       | 90    |
 
+## Run Locally
+
+```sh
+python3 run-site.py
+```
+
+Opens the matrix in your browser (defaults to port 8000; pass a custom port as an argument).
+
 ## Platforms Covered
 
 Linux, macOS, Windows, Network, PRE, Containers, Office 365, SaaS, Google Workspace, IaaS, Azure AD
-
-## How to Use
-
-1. Download `mitre_matrix_financial_sector.json`
-2. Go to [MITRE ATT&CK Navigator](https://mitre-attack.github.io/attack-navigator/)
-3. Choose **Open Existing Layer** and upload the JSON file
