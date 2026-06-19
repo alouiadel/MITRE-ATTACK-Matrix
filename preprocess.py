@@ -48,6 +48,7 @@ def run():
     with open(OUTPUT_PKL, "wb") as f:
         pickle.dump(layer, f, protocol=pickle.HIGHEST_PROTOCOL)
 
+    # Write hash only after successful writes
     with open(HASH_FILE, "w") as f:
         f.write(file_hash(LAYER_FILE) + file_hash(LOOKUP_FILE))
 

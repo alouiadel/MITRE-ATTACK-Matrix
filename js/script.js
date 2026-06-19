@@ -137,7 +137,10 @@ function buildGraph(data) {
       tactic: t.tactic,
       score: t.score,
       name: t.name || t.techniqueID,
-      shortName: (t.name || t.techniqueID).slice(0, 22),
+      shortName:
+        (t.name || t.techniqueID).length > 22
+          ? (t.name || t.techniqueID).slice(0, 20) + '\u2026'
+          : t.name || t.techniqueID,
       description: t.description || '',
       radius: radiusScale(t.score),
     });
@@ -389,6 +392,8 @@ function buildGraph(data) {
   });
   resizeObserver.observe(container);
 
+  graphBuilt = true;
+
   if (currentFilter) applyFilter(currentFilter, nodes);
 }
 
@@ -434,14 +439,13 @@ function buildLegend(nodes) {
   const legend = document.getElementById('graphLegend');
   legend.innerHTML = '';
 
-  const seen = new Set();
-  for (const n of nodes) {
-    if (seen.has(n.tactic)) continue;
-    seen.add(n.tactic);
+  const tacticsInData = new Set(nodes.map((n) => n.tactic));
+  for (const tactic of TACTIC_ORDER) {
+    if (!tacticsInData.has(tactic)) continue;
 
     const item = document.createElement('div');
     item.className = 'graph-legend-item';
-    item.dataset.tactic = n.tactic;
+    item.dataset.tactic = tactic;
 
     const dot = document.createElement('span');
     dot.className = 'graph-legend-dot';
@@ -804,8 +808,12 @@ function renderMatrix(data) {
     }
   });
 
+  const total = techniques.filter((t) => t.enabled).length;
+  const visible = sortedTactics.reduce((sum, t) => sum + byTactic[t].length, 0);
   document.getElementById('totalCount').textContent =
-    techniques.filter((t) => t.enabled).length + ' techniques';
+    total === visible
+      ? total + ' techniques'
+      : visible + ' / ' + total + ' techniques';
 }
 
 function appendCard(body, tech, minScore, maxScore, c1, c2, c3, isSub) {
@@ -816,6 +824,9 @@ function appendCard(body, tech, minScore, maxScore, c1, c2, c3, isSub) {
   card.className = 'matrix-card' + (isSub ? ' subtech' : '');
   card.style.background = bg;
   card.style.color = tc;
+  card.tabIndex = 0;
+  card.role = 'button';
+  card.setAttribute('aria-label', tech.name || tech.techniqueID);
 
   const nameSpan = document.createElement('span');
   nameSpan.className = 'card-name';
@@ -837,7 +848,7 @@ function appendCard(body, tech, minScore, maxScore, c1, c2, c3, isSub) {
 
   card.appendChild(meta);
 
-  card.addEventListener('click', () => {
+  const showModal = () => {
     openModal({
       techId: tech.techniqueID,
       name: tech.name || tech.techniqueID,
@@ -845,12 +856,21 @@ function appendCard(body, tech, minScore, maxScore, c1, c2, c3, isSub) {
       score: tech.score,
       description: tech.description || '',
     });
+  };
+  card.addEventListener('click', showModal);
+  card.addEventListener('keydown', (e) => {
+    if (e.key === 'Enter' || e.key === ' ') {
+      e.preventDefault();
+      showModal();
+    }
   });
 
   body.appendChild(card);
 }
 
 // --- View Toggle ---
+
+let graphBuilt = false;
 
 function switchView(view) {
   if (view === currentView) return;
@@ -866,8 +886,17 @@ function switchView(view) {
     matrixEl.style.display = 'none';
     graphBtn.classList.add('active');
     matrixBtn.classList.remove('active');
-    if (layerData && !simulation) {
-      setTimeout(() => buildGraph(layerData), 50);
+    if (layerData) {
+      if (graphBuilt && simulation) {
+        // Reheat cached simulation
+        const container = document.getElementById('graphContainer');
+        if (resizeObserver) {
+          resizeObserver.observe(container);
+        }
+        simulation.alpha(0.3).restart();
+      } else if (!graphBuilt) {
+        setTimeout(() => buildGraph(layerData), 50);
+      }
     }
   } else {
     graphEl.style.display = 'none';
@@ -876,7 +905,9 @@ function switchView(view) {
     matrixBtn.classList.add('active');
     if (simulation) {
       simulation.stop();
-      simulation = null;
+    }
+    if (resizeObserver) {
+      resizeObserver.disconnect();
     }
     if (layerData) {
       renderMatrix(layerData);
