@@ -96,6 +96,7 @@ let layerData = null;
 
 let graphSvg = null;
 let graphG = null;
+let graphZoom = null;
 let activeTacticFilter = null;
 let resizeObserver = null;
 
@@ -210,16 +211,16 @@ function buildGraph(data) {
   graphG = graphSvg.append('g');
 
   // Zoom
-  const zoom = d3
+  graphZoom = d3
     .zoom()
     .scaleExtent([0.15, 6])
     .on('zoom', (event) => {
       graphG.attr('transform', event.transform);
     });
-  graphSvg.call(zoom);
+  graphSvg.call(graphZoom);
 
   graphSvg.call(
-    zoom.transform,
+    graphZoom.transform,
     d3.zoomIdentity.translate(width / 2, height / 2),
   );
 
@@ -391,8 +392,6 @@ function buildGraph(data) {
     graphSvg.attr('width', r.width).attr('height', r.height);
   });
   resizeObserver.observe(container);
-
-  graphBuilt = true;
 
   if (currentFilter) applyFilter(currentFilter, nodes);
 }
@@ -870,8 +869,6 @@ function appendCard(body, tech, minScore, maxScore, c1, c2, c3, isSub) {
 
 // --- View Toggle ---
 
-let graphBuilt = false;
-
 function switchView(view) {
   if (view === currentView) return;
   currentView = view;
@@ -882,31 +879,31 @@ function switchView(view) {
   const matrixBtn = document.getElementById('viewMatrixBtn');
 
   if (view === 'graph') {
-    graphEl.style.display = '';
+    graphEl.classList.remove('graph-hidden');
     matrixEl.style.display = 'none';
     graphBtn.classList.add('active');
     matrixBtn.classList.remove('active');
-    if (layerData) {
-      if (graphBuilt && simulation) {
-        const container = document.getElementById('graphContainer');
-        if (resizeObserver) {
-          resizeObserver.observe(container);
-        }
-      } else if (!graphBuilt) {
-        setTimeout(() => buildGraph(layerData), 50);
+
+    // Build graph on first show only
+    if (!simulation && layerData) {
+      setTimeout(() => buildGraph(layerData), 50);
+    } else if (graphZoom && graphSvg) {
+      // Re-center zoom to current container dimensions
+      const container = document.getElementById('graphContainer');
+      const r = container.getBoundingClientRect();
+      if (r.width > 0 && r.height > 0) {
+        graphSvg.attr('width', r.width).attr('height', r.height);
+        graphSvg.call(
+          graphZoom.transform,
+          d3.zoomIdentity.translate(r.width / 2, r.height / 2),
+        );
       }
     }
   } else {
-    graphEl.style.display = 'none';
+    graphEl.classList.add('graph-hidden');
     matrixEl.style.display = '';
     graphBtn.classList.remove('active');
     matrixBtn.classList.add('active');
-    if (simulation) {
-      simulation.stop();
-    }
-    if (resizeObserver) {
-      resizeObserver.disconnect();
-    }
     if (layerData) {
       renderMatrix(layerData);
     }
