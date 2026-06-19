@@ -363,7 +363,7 @@ header > p {
 }
 
 .node-label {
-  font-size: 7px;
+  font-size: 9px;
   pointer-events: none;
   fill: #f0f6fc;
   text-anchor: middle;
@@ -684,6 +684,7 @@ footer a:hover {
 }
 
 .matrix-body {
+  max-height: 6000px;
   padding: 4px;
   transition:
     max-height 0.25s ease,

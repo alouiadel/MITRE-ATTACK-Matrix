@@ -272,7 +272,7 @@ function buildGraph(data) {
     .data(nodes)
     .join('text')
     .attr('class', 'node-label')
-    .attr('font-size', (d) => Math.max(7, Math.min(11, d.radius * 0.45)))
+    .attr('font-size', (d) => Math.max(9, Math.min(13, d.radius * 0.5)))
     .text((d) => d.shortName);
 
   // Tooltip
@@ -465,6 +465,10 @@ function toggleTacticFilter(tactic, nodes) {
     activeTacticFilter = tactic;
   }
 
+  // Clear search filter when legend is used
+  currentFilter = '';
+  document.getElementById('searchInput').value = '';
+
   const items = document.querySelectorAll('.graph-legend-item');
   items.forEach((el) => el.classList.remove('active'));
 
@@ -570,6 +574,25 @@ function applyFilter(filterText, nodes) {
   });
 }
 
+function resetGraphDisplay() {
+  if (!nodeElements) return;
+  const allScores = nodeData.map((n) => n.score);
+  const maxScore = Math.max(...allScores);
+  nodeElements.each(function (d) {
+    const el = d3.select(this);
+    el.classed('faded', false);
+    el.classed('highlighted', false);
+    el.attr('r', d.radius);
+    el.attr('stroke-width', 2 + (d.score / maxScore) * 5);
+  });
+  labelElements.each(function () {
+    const el = d3.select(this);
+    el.classed('faded', false);
+    el.classed('visible', false);
+  });
+  linkElements.attr('stroke-opacity', 0.25);
+}
+
 function onFilterChange() {
   currentFilter = document.getElementById('searchInput').value;
   if (activeTacticFilter) {
@@ -577,6 +600,7 @@ function onFilterChange() {
     document
       .querySelectorAll('.graph-legend-item')
       .forEach((el) => el.classList.remove('active'));
+    resetGraphDisplay();
   }
   if (currentView === 'graph' && nodeData.length > 0) {
     applyFilter(currentFilter, nodeData);
@@ -609,9 +633,9 @@ function renderMatrix(data) {
 
   const { gradient, techniques } = data;
   const [c1, c2, c3] = gradient.colors.map((c) => c.slice(0, 7));
-  const scores = techniques.map((t) => t.score);
-  const minScore = Math.min(...scores);
-  const maxScore = Math.max(...scores);
+  const enabledScores = techniques.filter((t) => t.enabled).map((t) => t.score);
+  const minScore = Math.min(...enabledScores);
+  const maxScore = Math.max(...enabledScores);
   const lower = currentFilter.toLowerCase();
 
   const byTactic = {};
@@ -871,10 +895,13 @@ function openModal(d) {
   const desc = document.getElementById('modalDesc');
   desc.textContent = d.description || 'No description available.';
 
-  const minScore = Math.min(...nodeData.map((n) => n.score));
-  const maxScore = Math.max(...nodeData.map((n) => n.score));
-  const layer = layerData;
-  const [c1, c2, c3] = layer.gradient.colors.map((c) => c.slice(0, 7));
+  // Use all enabled techniques for score range (consistent with graph & matrix)
+  const allScores = layerData.techniques
+    .filter((t) => t.enabled)
+    .map((t) => t.score);
+  const minScore = Math.min(...allScores);
+  const maxScore = Math.max(...allScores);
+  const [c1, c2, c3] = layerData.gradient.colors.map((c) => c.slice(0, 7));
   const bg = scoreColor(d.score, minScore, maxScore, c1, c2, c3);
 
   const badge = document.getElementById('modalScore');
