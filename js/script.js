@@ -888,12 +888,10 @@ function switchView(view) {
     matrixBtn.classList.remove('active');
     if (layerData) {
       if (graphBuilt && simulation) {
-        // Reheat cached simulation
         const container = document.getElementById('graphContainer');
         if (resizeObserver) {
           resizeObserver.observe(container);
         }
-        simulation.alpha(0.3).restart();
       } else if (!graphBuilt) {
         setTimeout(() => buildGraph(layerData), 50);
       }
