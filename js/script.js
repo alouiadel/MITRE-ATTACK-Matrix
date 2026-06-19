@@ -448,15 +448,15 @@ function buildLegend(nodes) {
 
     const dot = document.createElement('span');
     dot.className = 'graph-legend-dot';
-    dot.style.background = TACTIC_COLORS[n.tactic] || '#888';
+    dot.style.background = TACTIC_COLORS[tactic] || '#888';
     item.appendChild(dot);
 
     const label = document.createElement('span');
     label.className = 'graph-legend-label';
-    label.textContent = TACTIC_LABELS[n.tactic] || n.tactic;
+    label.textContent = TACTIC_LABELS[tactic] || tactic;
     item.appendChild(label);
 
-    item.addEventListener('click', () => toggleTacticFilter(n.tactic, nodes));
+    item.addEventListener('click', () => toggleTacticFilter(tactic, nodes));
     legend.appendChild(item);
   }
 }
